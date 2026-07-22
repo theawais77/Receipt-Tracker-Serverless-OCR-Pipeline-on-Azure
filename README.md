@@ -4,6 +4,10 @@ An event-driven serverless app that turns a photo of a receipt into structured, 
 
 Built as a hands-on project while studying for the **Microsoft Azure Developer Associate (AZ-204)** certification 
 
+**🔗 Live demo:** https://kind-island-03410b21e.7.azurestaticapps.net
+
+Deployed and running on Azure: Static Web Apps → Function App → Blob Storage → Blob trigger → Gemini Vision → Cosmos DB.
+
 ---
 
 ## Architecture
@@ -43,9 +47,10 @@ flowchart TD
 
 - ✅ Image upload API with content-type validation (JPEG / PNG / WebP)
 - ✅ Raw images stored in Blob Storage, partitioned by user
-- 🚧 Automatic OCR extraction on upload (Blob trigger → Gemini)
-- 🚧 Structured receipt storage in Cosmos DB
-- 🚧 Query API + dashboard with monthly totals
+- ✅ Automatic OCR extraction on upload (Blob trigger → Gemini)
+- ✅ Structured receipt storage in Cosmos DB
+- ✅ Query API + dashboard with monthly totals
+- ✅ Deployed to Azure with CI/CD via GitHub Actions
 - 🚧 Secrets secured via Key Vault + Managed Identity
 - 🚧 Telemetry via Application Insights
 
@@ -106,9 +111,11 @@ Response:
 |-------|-------|--------|
 | 1 | Project setup, scaffold, Cosmos DB | ✅ Done |
 | 2a | `UploadReceipt` — HTTP → Blob Storage | ✅ Done |
-| 2b | `ProcessReceipt` — Blob trigger → Gemini OCR → Cosmos | 🚧 Next |
-| 3 | `GetReceipts` query API + Static Web App dashboard | ⬜ Planned |
-| 4 | Deploy to Azure, Key Vault + Managed Identity | ⬜ Planned |
+| 2b | `ProcessReceipt` — Blob trigger → Gemini OCR → Cosmos | ✅ Done |
+| 3 | `GetReceipts` query API + Static Web App dashboard | ✅ Done |
+| 4a | Deploy Function App + Storage to Azure | ✅ Done |
+| 4b | Deploy dashboard to Static Web Apps (GitHub Actions CI/CD) | ✅ Done |
+| 4c | Key Vault + Managed Identity | 🚧 Next |
 | 5 | Application Insights monitoring | ⬜ Planned |
 
 ---
