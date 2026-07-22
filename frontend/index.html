@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Receipt Tracker</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-2: #22c55e;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            padding: 2rem 1rem;
+        }
+        .wrap { max-width: 960px; margin: 0 auto; }
+        header { margin-bottom: 2rem; }
+        h1 { font-size: 1.75rem; display: flex; align-items: center; gap: 0.5rem; }
+        .subtitle { color: var(--muted); font-size: 0.9rem; margin-top: 0.25rem; }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h2 { font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 1rem; }
+        .upload-row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+        input[type="file"] { color: var(--muted); font-size: 0.9rem; }
+        button {
+            background: var(--accent);
+            color: #0f172a;
+            border: none;
+            border-radius: 8px;
+            padding: 0.6rem 1.2rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        button.secondary { background: var(--border); color: var(--text); }
+        .status { font-size: 0.85rem; color: var(--muted); margin-top: 0.75rem; min-height: 1.2rem; }
+        .totals { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem; }
+        .total-tile { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
+        .total-tile .month { font-size: 0.8rem; color: var(--muted); }
+        .total-tile .amount { font-size: 1.4rem; font-weight: 700; color: var(--accent-2); margin-top: 0.25rem; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th, td { text-align: left; padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+        td.amount { font-weight: 600; color: var(--accent-2); }
+        .badge { background: var(--border); border-radius: 999px; padding: 0.15rem 0.6rem; font-size: 0.75rem; }
+        .empty { color: var(--muted); text-align: center; padding: 2rem; }
+        .muted { color: var(--muted); }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <header>
+            <h1>🧾 Receipt Tracker</h1>
+            <p class="subtitle">Serverless OCR pipeline on Azure — upload a receipt, let Gemini Vision read it.</p>
+        </header>
+
+        <div class="card">
+            <h2>Upload a receipt</h2>
+            <div class="upload-row">
+                <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" />
+                <button id="uploadBtn">Upload</button>
+                <button id="refreshBtn" class="secondary">Refresh</button>
+            </div>
+            <div class="status" id="status"></div>
+        </div>
+
+        <div class="card">
+            <h2>Monthly totals</h2>
+            <div class="totals" id="totals"><span class="muted">No data yet.</span></div>
+        </div>
+
+        <div class="card">
+            <h2>Receipts</h2>
+            <table>
+                <thead>
+                    <tr><th>Vendor</th><th>Date</th><th>Category</th><th>Total</th></tr>
+                </thead>
+                <tbody id="rows">
+                    <tr><td colspan="4" class="empty">No receipts yet. Upload one above.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const USER_ID = "demo-user";
+
+        // Local (swa start) proxies /api to the Functions host, so relative paths work.
+        // In the cloud the dashboard is on Static Web Apps and the API lives in a
+        // separate Function App, so we call it by absolute URL.
+        const FUNCTION_APP = "https://reciept-tracker456-adc9dtccdxhgdefj.westcentralus-01.azurewebsites.net";
+        const API_BASE = location.hostname === "localhost" || location.hostname === "127.0.0.1"
+            ? ""
+            : FUNCTION_APP;
+
+        const $ = (id) => document.getElementById(id);
+        const setStatus = (msg) => { $("status").textContent = msg; };
+
+        async function uploadReceipt() {
+            const file = $("fileInput").files[0];
+            if (!file) { setStatus("Pick an image first."); return; }
+
+            $("uploadBtn").disabled = true;
+            setStatus(`Uploading ${file.name}…`);
+            try {
+                const res = await fetch(`${API_BASE}/api/UploadReceipt`, {
+                    method: "POST",
+                    headers: { "Content-Type": file.type },
+                    body: file,
+                });
+                if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+                setStatus("Uploaded. Processing with Gemini… refreshing in a few seconds.");
+                // OCR runs async via the blob trigger — give it time, then reload.
+                setTimeout(loadReceipts, 6000);
+            } catch (e) {
+                setStatus("Error: " + e.message);
+            } finally {
+                $("uploadBtn").disabled = false;
+                $("fileInput").value = "";
+            }
+        }
+
+        function money(amount, currency) {
+            if (amount == null) return "—";
+            return (currency ? currency + " " : "") + amount.toFixed(2);
+        }
+
+        async function loadReceipts() {
+            setStatus("Loading receipts…");
+            try {
+                const res = await fetch(`${API_BASE}/api/receipts?userId=${encodeURIComponent(USER_ID)}`);
+                if (!res.ok) throw new Error(`Load failed (${res.status})`);
+                const data = await res.json();
+                renderTotals(data.monthlyTotals || {});
+                renderRows(data.receipts || []);
+                setStatus(`${data.count} receipt(s).`);
+            } catch (e) {
+                setStatus("Error: " + e.message);
+            }
+        }
+
+        function renderTotals(totals) {
+            const entries = Object.entries(totals).sort((a, b) => b[0].localeCompare(a[0]));
+            $("totals").innerHTML = entries.length
+                ? entries.map(([m, amt]) =>
+                    `<div class="total-tile"><div class="month">${m}</div><div class="amount">${amt.toFixed(2)}</div></div>`
+                  ).join("")
+                : `<span class="muted">No data yet.</span>`;
+        }
+
+        function renderRows(receipts) {
+            $("rows").innerHTML = receipts.length
+                ? receipts.map((r) =>
+                    `<tr>
+                        <td>${r.vendor ?? "<span class='muted'>—</span>"}</td>
+                        <td>${r.date ?? "<span class='muted'>—</span>"}</td>
+                        <td><span class="badge">${r.category ?? "—"}</span></td>
+                        <td class="amount">${money(r.total, r.currency)}</td>
+                    </tr>`
+                  ).join("")
+                : `<tr><td colspan="4" class="empty">No receipts yet. Upload one above.</td></tr>`;
+        }
+
+        $("uploadBtn").addEventListener("click", uploadReceipt);
+        $("refreshBtn").addEventListener("click", loadReceipts);
+        loadReceipts();
+    </script>
+</body>
+</html>
