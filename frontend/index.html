@@ -37,12 +37,14 @@
 
                 <form class="upload-console" id="uploadForm">
                     <input id="fileInput" class="file-input" type="file" accept="image/jpeg,image/png,image/webp" />
+                    <input id="cameraInput" class="file-input" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" />
                     <label class="drop-zone" id="dropZone" for="fileInput">
                         <span class="drop-title" id="fileName">Select receipt image</span>
-                        <span class="drop-meta" id="fileMeta">JPEG, PNG, or WebP</span>
+                        <span class="drop-meta" id="fileMeta">Choose a file or capture with your phone camera</span>
                     </label>
                     <div class="upload-actions">
                         <button class="button button-primary" id="uploadBtn" type="submit">Upload Receipt</button>
+                        <button class="button button-ghost" id="cameraBtn" type="button">Camera</button>
                         <button class="button button-ghost" id="clearBtn" type="button">Clear</button>
                     </div>
                 </form>

@@ -15,10 +15,12 @@ const $ = (id) => document.getElementById(id);
 const els = {
     form: $("uploadForm"),
     fileInput: $("fileInput"),
+    cameraInput: $("cameraInput"),
     dropZone: $("dropZone"),
     fileName: $("fileName"),
     fileMeta: $("fileMeta"),
     uploadBtn: $("uploadBtn"),
+    cameraBtn: $("cameraBtn"),
     clearBtn: $("clearBtn"),
     refreshBtn: $("refreshBtn"),
     status: $("status"),
@@ -64,6 +66,7 @@ function updateSelectedFile(file) {
     if (file && !SUPPORTED_TYPES.has(file.type)) {
         state.selectedFile = null;
         els.fileInput.value = "";
+        els.cameraInput.value = "";
         els.dropZone.classList.remove("is-ready");
         els.fileName.textContent = "Unsupported file type";
         els.fileMeta.textContent = "Use JPEG, PNG, or WebP";
@@ -76,8 +79,9 @@ function updateSelectedFile(file) {
 
     if (!file) {
         els.fileName.textContent = "Select receipt image";
-        els.fileMeta.textContent = "JPEG, PNG, or WebP";
+        els.fileMeta.textContent = "Choose a file or capture with your phone camera";
         els.fileInput.value = "";
+        els.cameraInput.value = "";
         return;
     }
 
@@ -88,6 +92,7 @@ function updateSelectedFile(file) {
 function setUploading(isUploading) {
     els.uploadBtn.disabled = isUploading;
     els.refreshBtn.disabled = isUploading;
+    els.cameraBtn.disabled = isUploading;
     els.clearBtn.disabled = isUploading;
 }
 
@@ -197,7 +202,7 @@ async function loadReceipts() {
 
 async function uploadReceipt(event) {
     event.preventDefault();
-    const file = state.selectedFile || els.fileInput.files[0];
+    const file = state.selectedFile || els.fileInput.files[0] || els.cameraInput.files[0];
 
     if (!file) {
         setStatus("Choose a receipt image before uploading.", "error");
@@ -227,6 +232,8 @@ async function uploadReceipt(event) {
 }
 
 els.fileInput.addEventListener("change", () => updateSelectedFile(els.fileInput.files[0]));
+els.cameraInput.addEventListener("change", () => updateSelectedFile(els.cameraInput.files[0]));
+els.cameraBtn.addEventListener("click", () => els.cameraInput.click());
 els.form.addEventListener("submit", uploadReceipt);
 els.refreshBtn.addEventListener("click", loadReceipts);
 els.clearBtn.addEventListener("click", () => {
